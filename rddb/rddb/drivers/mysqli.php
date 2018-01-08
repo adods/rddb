@@ -143,12 +143,12 @@ class mysqli_rddb_driver extends rddb_driver {
 				if ($star) {
 					$s .= '.*';
 				}
-			} else if (stripos($s, ' AS ') !== false 
+			} else if (($pos = stripos($s, ' AS ')) !== false 
 					&& strpos($s, '(') === false 
 					&& strpos($s, ',') === false) {
-				$ea = explode(' as ', strtolower($s));
-				$ea[0] = $this->_protect_dotted_key($ea[0]);
-				$s = $ea[0].' AS '.$this->protect_key($ea[1]);
+				//$ea = explode(' as ', strtolower($s));
+				$f = $this->_protect_dotted_key(substr($s, 0, $pos));
+				$s = $f.' AS '.$this->protect_key(substr($s, $pos + 4));
 			} else if (substr_count($s, ' ') == 1) {
 				$ea = explode(' ', strtolower($s));
 				$ea[0] = $this->_protect_dotted_key($ea[0]);
@@ -168,11 +168,11 @@ class mysqli_rddb_driver extends rddb_driver {
 					&& strpos($t, ',') === false 
 					&& strpos($t, ' ') === false) {
 				$t = $this->_protect_dotted_key($t);
-			} else if (stripos($t, ' AS ') !== false 
+			} else if (($post = stripos($t, ' AS ')) !== false 
 					&& strpos($t, '(') === false) {
-				$ea = explode(' as ', strtolower($t));
-				$ea[0] = $this->_protect_dotted_key($ea[0]);
-				$t = $ea[0].' AS '.$this->protect_key($ea[1]);
+				//$ea = explode(' as ', strtolower($t));
+				$f = $this->_protect_dotted_key(substr($t, 0, $post));
+				$t = $f.' AS '.$this->protect_key(substr($t, $post + 4));
 			} else if (substr_count($t, ' ') == 1) {
 				$ea = explode(' ', strtolower($t));
 				$ea[0] = $this->_protect_dotted_key($ea[0]);
@@ -285,9 +285,17 @@ class mysqli_rddb_driver extends rddb_driver {
 				} else {
 					$q = '';
 					$k = trim($k);
-					if (preg_match('/^\s*"?(OR|NOT|AND)\s+/i', $k, $m)) {
+					if (preg_match('/^\s*"?(OR|NOT|AND|OR\d+)\s+/i', $k, $m)) {
 						$op = strtoupper($m[1]);
-						$k = trim(preg_replace('/^\s*"?(OR|NOT|AND)\s+/i', '', $k));
+						if (strpos($op, 'OR') === 0) $op = 'OR';
+						$k = trim(preg_replace('/^\s*"?(OR|NOT|AND|OR\d+)\s+/i', '', $k));
+					}
+					$not = false;
+					if (preg_match('/^\s*"?(NOT)\s+/i', $k, $m2)) {
+						$not = true;
+						$k = trim(preg_replace('/^\s*"?(NOT)\s+/i', '', $k));
+					} else if ($op == 'NOT') {
+						$not = true;
 					}
 					if (strpos($k, '(') === false) {
 						if (strpos($k, "'") === false) {
@@ -302,7 +310,10 @@ class mysqli_rddb_driver extends rddb_driver {
 										&& strpos($v, '%') === false) 
 								|| strtoupper($op) != 'NOT') {
 							$q .= $op.' ';
-							$op = false;
+							if ($not)
+								$op = 'NOT';
+							else
+								$op = false;
 						}
 					}
 					$q .= $k;
@@ -330,14 +341,16 @@ class mysqli_rddb_driver extends rddb_driver {
 							}
 							$q .= (isset($op) && strtoupper($op) == 'NOT' ? 
 									' NOT' : '')." IN ("
-									.(!empty($tv)?implode(', ', $tv):'NULL').")";
+									.(!empty($tv) ? implode(', ', $tv) : 'NULL').")";
 							$op = false;
 						}
 					} else {
 						if (is_null($v)) {
-							$q .= ' IS NULL';
+							$q .= (isset($op) && strtoupper($op) == 'NOT') ? 
+									' IS NOT NULL' : ' IS NULL';
 						} else if ($v instanceof rddb_string_value) {
-							$q .= " = ".$this->escape($v->value);
+							$q .= " ".(isset($op) && strtoupper($op) == 'NOT' ? 
+									'!' : '')."= ".$this->escape($v->value);
 						} else if (preg_match('/^\s*"?(>|<|=|>=|<=|<>|!=|<=>|LIKE|IN|'
 								. 'IS|REGEXP|NOT LIKE|IS NOT|NOT IN|IS NOT NULL)\s+/i', 
 								$v, $m)) {
@@ -356,13 +369,16 @@ class mysqli_rddb_driver extends rddb_driver {
 							}
 						} else if (preg_match('/^`[a-zA-Z_][a-zA-Z0-9_]+`$/i', 
 								$v, $m)) {
-							$q .= " = ".$v;
+							$q .= " ".(isset($op) && strtoupper($op) == 'NOT' ? 
+									'!' : '')."= ".$v;
 						} else {
 							if (preg_match('/^%|[^\x5C]%|[^\x5C](\x5C\x5C)+%/', $v)) {
-								if (isset($op) && $op == 'NOT') $q .= " NOT";
+								if (isset($op) && strtoupper($op) == 'NOT') 
+									$q .= " NOT";
 								$q .= " LIKE ";
 							} else {
-								$q .= " = ";
+								$q .= " ".(isset($op) && strtoupper($op) == 'NOT' ? 
+									'!' : '')."= ";
 							}
 							if (strpos($v, '%') !== false 
 									|| (strpos($v, '(') === false)) {
@@ -377,6 +393,8 @@ class mysqli_rddb_driver extends rddb_driver {
 			$w = implode(' AND ', $r_where);
 			$w = str_replace('AND OR', 'OR', $w);
 			$w = str_replace('AND AND', 'AND', $w);
+			$w = str_replace('(OR ', '(', $w);
+			$w = str_replace('(AND ', '(', $w);
 			return $w;
 		}
 	}
@@ -407,10 +425,10 @@ class mysqli_rddb_driver extends rddb_driver {
 		reset($join);
 		$table = current($join);
 		if (strpos($table, '(') === false) {
-			if (stripos($table, ' AS ') !== false) {
-				$ea = explode(' as ', strtolower($s));
-				$ea[0] = $this->_protect_dotted_key($ea[0]);
-				$table = $ea[0].' AS '.$this->protect_key($ea[1]);
+			if (($pos = stripos($table, ' AS ')) !== false) {
+				//$ea = explode(' as ', strtolower($s));
+				$f = $this->_protect_dotted_key(substr($table, 0, $pos));
+				$table = $f.' AS '.$this->protect_key(substr($table, $pos + 4));
 			} else if (substr_count($table, ' ') == 1) {
 				$ea = explode(' ', strtolower($table));
 				$ea[0] = $this->_protect_dotted_key($ea[0]);

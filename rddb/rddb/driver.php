@@ -34,6 +34,8 @@ class rddb_driver {
 	protected $cache = array();
 
 	public $debug = false;
+	
+	public $last_query = '';
 
 	public function __construct($params) {
 		if (is_array($params)) {
@@ -111,6 +113,9 @@ class rddb_driver {
 		if (!$this->conn_id) {
 			$this->connect();
 		}
+		
+		$this->last_query = $sql;
+		
 		return $this->_execute($sql);
 	}
 

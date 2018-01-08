@@ -16,8 +16,8 @@ class rddb {
 	public static function load($params = '') {
 		$base = realpath(__DIR__);
 		if (is_string($params) && strpos($params, '://') === false) {
-			if (file_exists($base.DS.'config'.EXT)) {
-				include $base.DS.'config'.EXT;
+			if (file_exists($base.DS.'rdconfig'.EXT)) {
+				include $base.DS.'rdconfig'.EXT;
 			}
 
 			if (!isset($db) or count($db) == 0) {
@@ -78,13 +78,13 @@ class rddb {
 			return false;
 		}
 
-		if (!file_exists($base.DS.'db'.DS.'drivers'.DS.$params['driver'].EXT)) {
+		if (!file_exists($base.DS.'rddb'.DS.'drivers'.DS.$params['driver'].EXT)) {
 			self::$error = 'Your selected database driver does not exist';
 			return false;
 		}
 
-		require_once $base.DS.'db'.DS.'driver'.EXT;
-		require_once $base.DS.'db'.DS.'drivers'.DS.$params['driver'].EXT;
+		require_once $base.DS.'rddb'.DS.'driver'.EXT;
+		require_once $base.DS.'rddb'.DS.'drivers'.DS.$params['driver'].EXT;
 
 		$driver = $params['driver'].'_rddb_driver';
 

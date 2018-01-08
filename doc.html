@@ -156,31 +156,40 @@ $db->select('table', $params);
 							</blockquote>
 						</li>
 						<li>
-							<h4>['(OR|NOT|AND) field' => 'value']</h4>
+							<h4>['(OR|AND)( NOT) field' => 'value']</h4>
 							<blockquote>
-								<pre>(OR|NOT|AND) `field` = 'value'</pre>
+								<pre>(OR|AND)( NOT) `field` = 'value'</pre>
 								<p>NOT is used as an alternative to !=</p>
+							</blockquote>
+						</li>
+						<li>
+							<h4>Multiple same field ORs</h4>
+							<blockquote>
+								<p>Example</p>
+								<pre>['OR1 field' => '%v1%', 'OR2 field' => '%v2%']</pre>
+								<p>Result</p>
+								<pre>`field` = '%v1%' OR `field` = '%v2%'</pre>
 							</blockquote>
 						</li>
 						<li>
 							<h4>['(NOT) field' => NULL]</h4>
 							<blockquote>
 								<pre>(NOT) `field` IS NULL</pre>
-								<p>NOT is used as an alternative to IS NOT</p>
+								<p>If NOT is used, it will be automatically converted to IS NOT NULL</p>
 							</blockquote>
 						</li>
 						<li>
 							<h4>['(NOT) field' => ['value1', 'value2', 'value3']]</h4>
 							<blockquote>
 								<code>(NOT) `field` IN ('value1', 'value2', 'value3')</code>
-								<p>NOT in the beginning also is an alternative to NOT IN</p>
+								<p>If NOT is used, it will be automatically converted to NOT IN</p>
 							</blockquote>
 						</li>
 						<li>
 							<h4>['(NOT) field' => '%value%']</h4>
 							<blockquote>
 								<code>(NOT) `field` LIKE '%value%'</code>
-								<p>NOT in the beginning also is an alternative to NOT LIKE</p>
+								<p>If NOT is used, it will be automatically converted to NOT LIKE</p>
 							</blockquote>
 						</li>
 						<li>
